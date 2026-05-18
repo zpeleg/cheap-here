@@ -26,7 +26,7 @@ from pathlib import Path
 
 from config import load_config
 from scraper import download
-from convert import convert, price_csvs, store_csvs
+from convert import convert, price_csvs, store_csvs, promo_csvs
 from db import Store
 from export import export_json
 
@@ -75,19 +75,27 @@ def main() -> None:
             print(f"[stores] {path.name} — {n} rows")
             total_stores += n
 
+        total_promos = 0
+        for path in promo_csvs(csv_dir):
+            n = store.load_promo_csv(path)
+            print(f"[promos] {path.name} — {n} rows")
+            total_promos += n
+
         if total_prices == 0:
             sys.exit("No price rows ingested — verify chains and network access")
 
         latest = store.latest_per_branch()
         branches = store.branches()
-        print(f"Loaded {total_prices} price rows, {total_stores} store rows")
+        promos = store.active_promos_per_branch()
+        print(f"Loaded {total_prices} price rows, {total_stores} store rows, {total_promos} promo-item rows")
         print(f"Latest snapshot: {len(latest)} (branch × product) pairs across {len(branches)} branches")
+        print(f"Active promos: {len(promos)} (branch × product) pairs with a current sale price")
 
         output_dir = cfg.output_dir
         if not output_dir.is_absolute():
             output_dir = Path(__file__).parent / output_dir
 
-        keys = export_json(latest, branches, output_dir)
+        keys = export_json(latest, branches, promos, output_dir)
         print(f"Exported {len(keys)} branch files → {output_dir}")
 
         store.close()

@@ -37,3 +37,7 @@ def price_csvs(csv_dir: Path) -> list[Path]:
 
 def store_csvs(csv_dir: Path) -> list[Path]:
     return sorted(csv_dir.glob(f"{FileTypesFilters.STORE_FILE.name.lower()}_*.csv"))
+
+
+def promo_csvs(csv_dir: Path) -> list[Path]:
+    return sorted(csv_dir.glob(f"{FileTypesFilters.PROMO_FULL_FILE.name.lower()}_*.csv"))

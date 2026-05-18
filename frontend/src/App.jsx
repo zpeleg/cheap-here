@@ -3,19 +3,20 @@ import StoreSelector from './components/StoreSelector'
 import ItemsTable from './components/ItemsTable'
 
 export default function App() {
-  const [storeID, setStoreID] = useState(null)
+  const [store, setStore] = useState(null)
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const handleStoreSelect = async (id) => {
-    setStoreID(id)
+  const handleStoreSelect = async (s) => {
+    setStore(s)
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/data/store_${id}.json`)
+      const res = await fetch(`/data/store_${s.key}.json`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      setItems(await res.json())
+      const data = await res.json()
+      setItems(data.items || [])
     } catch (e) {
       setError(e.message)
       setItems([])
@@ -36,7 +37,7 @@ export default function App() {
       </header>
 
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
-        <StoreSelector onSelect={handleStoreSelect} selected={storeID} />
+        <StoreSelector onSelect={handleStoreSelect} selected={store?.key} />
 
         {loading && (
           <p className="text-center text-gray-400 py-12">Loading store data…</p>
@@ -44,18 +45,18 @@ export default function App() {
 
         {error && (
           <div className="rounded-md bg-red-50 border border-red-200 p-4 text-sm text-red-700">
-            Failed to load store {storeID}: {error}
+            Failed to load store {store?.key}: {error}
           </div>
         )}
 
-        {!loading && storeID && !error && items.length === 0 && (
+        {!loading && store && !error && items.length === 0 && (
           <p className="text-center text-gray-400 py-12">
-            No cheapest items found for store {storeID}.
+            No cheapest items found for store {store.key}.
           </p>
         )}
 
         {!loading && items.length > 0 && (
-          <ItemsTable items={items} storeID={storeID} />
+          <ItemsTable items={items} store={store} />
         )}
       </main>
     </div>

@@ -2,18 +2,67 @@ import json
 from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
+from statistics import median
 
-from db import BranchItem, StoreInfo
+from db import BranchItem, PromoItem, StoreInfo
 
 
-def export_json(items: list[BranchItem], stores: list[StoreInfo], output_dir: Path) -> list[str]:
+MIN_DISCOUNT_VS_MEDIAN = 0.05
+
+
+def export_json(
+    items: list[BranchItem],
+    stores: list[StoreInfo],
+    promos: list[PromoItem],
+    output_dir: Path,
+) -> list[str]:
     """Write per-branch JSON files plus a stores index. Returns the list of branch keys."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    for stale in output_dir.glob("store_*.json"):
+        stale.unlink()
+
     store_meta = {(s.chain_id, s.store_id): s for s in stores}
+    # PromoItem is already best-per-branch-item — see Store.active_promos_per_branch.
+    promo_by_branch_item: dict[tuple[str, str, str], PromoItem] = {
+        (p.chain_id, p.store_id, p.item_code): p for p in promos
+    }
+
+    # Effective price honours active promos: a "3 for ₪14" sale beats the
+    # sticker price even when sticker prices look similar across branches.
+    # This matches the reference site's "מבצע" column.
+    def effective_price(it: BranchItem) -> float:
+        promo = promo_by_branch_item.get((it.chain_id, it.store_id, it.item_code))
+        if promo is None:
+            return it.price
+        return min(it.price, promo.per_unit_price)
+
+    # Build a "best price" filter per item_code:
+    #   1. item appears in >=2 chains (cross-chain comparison must be meaningful)
+    #   2. effective prices are not all identical across stores (some real variation exists)
+    #   3. this branch's effective price is at least MIN_DISCOUNT_VS_MEDIAN below
+    #      the cross-store median (i.e. a genuine deal, not a tiny rounding diff)
+    chains_per_item: dict[str, set[str]] = defaultdict(set)
+    prices_per_item: dict[str, list[float]] = defaultdict(list)
+    for it in items:
+        chains_per_item[it.item_code].add(it.chain_id)
+        prices_per_item[it.item_code].append(effective_price(it))
+
+    item_thresholds: dict[str, float] = {}
+    for code, prices in prices_per_item.items():
+        if len(chains_per_item[code]) < 2:
+            continue
+        if min(prices) == max(prices):
+            continue
+        item_thresholds[code] = median(prices) * (1 - MIN_DISCOUNT_VS_MEDIAN)
 
     groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for it in items:
+        eff = effective_price(it)
+        threshold = item_thresholds.get(it.item_code)
+        if threshold is None or eff > threshold:
+            continue
+        promo = promo_by_branch_item.get((it.chain_id, it.store_id, it.item_code))
         groups[(it.chain_id, it.store_id)].append({
             "barcode":  it.item_code,
             "name":     it.item_name,
@@ -22,8 +71,10 @@ def export_json(items: list[BranchItem], stores: list[StoreInfo], output_dir: Pa
             "quantity": it.quantity,
             "unit":     it.unit_of_measure,
             "price":    it.price,
+            "effectivePrice": eff,
             "unitPrice": it.unit_of_measure_price,
             "updatedAt": it.price_update_date,
+            "sale":     _sale_payload(promo) if promo else None,
         })
 
     updated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -31,7 +82,7 @@ def export_json(items: list[BranchItem], stores: list[StoreInfo], output_dir: Pa
     index_entries: list[dict] = []
 
     for (chain_id, store_id), products in sorted(groups.items()):
-        products.sort(key=lambda p: p["price"])
+        products.sort(key=lambda p: p["effectivePrice"])
         key = f"{chain_id}_{store_id}"
         branch_keys.append(key)
 
@@ -69,3 +120,13 @@ def export_json(items: list[BranchItem], stores: list[StoreInfo], output_dir: Pa
     )
 
     return branch_keys
+
+
+def _sale_payload(promo: PromoItem) -> dict:
+    return {
+        "minQty":       promo.min_qty,
+        "totalPrice":   promo.total_price,
+        "perUnitPrice": promo.per_unit_price,
+        "description":  promo.description,
+        "endDate":      promo.end_date,
+    }

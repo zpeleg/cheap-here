@@ -1,4 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+
+const CHAIN_NAMES = {
+  '7290027600007': 'Shufersal',
+  '7290058140886': 'Rami Levy',
+  '7290873255550': 'Tiv Taam',
+  '7290803800003': 'Yohananof',
+  '7290103152017': 'Osher Ad',
+  '7290696200003': 'Victory',
+  '7290058103393': 'Victory',
+}
+
+const chainLabel = (id) => CHAIN_NAMES[id] || id
 
 export default function StoreSelector({ onSelect, selected }) {
   const [stores, setStores] = useState([])
@@ -12,14 +24,40 @@ export default function StoreSelector({ onSelect, selected }) {
         if (!r.ok) throw new Error()
         return r.json()
       })
-      .then((data) => setStores([...data].sort()))
+      .then((data) => setStores(data.stores || []))
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false))
   }, [])
 
-  const filtered = stores.filter((id) =>
-    id.toLowerCase().includes(query.toLowerCase()),
-  )
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return stores
+    return stores.filter((s) => {
+      const hay = [
+        s.storeId,
+        s.key,
+        s.storeName,
+        s.city,
+        chainLabel(s.chainId),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return hay.includes(q)
+    })
+  }, [stores, query])
+
+  const grouped = useMemo(() => {
+    const map = new Map()
+    for (const s of filtered) {
+      if (!map.has(s.chainId)) map.set(s.chainId, [])
+      map.get(s.chainId).push(s)
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => a.storeId.localeCompare(b.storeId, undefined, { numeric: true }))
+    }
+    return [...map.entries()].sort((a, b) => chainLabel(a[0]).localeCompare(chainLabel(b[0])))
+  }, [filtered])
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -27,10 +65,10 @@ export default function StoreSelector({ onSelect, selected }) {
 
       <input
         type="search"
-        placeholder="Search by store ID…"
+        placeholder="Search by store ID, name, or city…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="w-full sm:w-72 border border-gray-300 rounded-lg px-4 py-2 text-sm mb-5
+        className="w-full sm:w-96 border border-gray-300 rounded-lg px-4 py-2 text-sm mb-5
                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
       />
 
@@ -46,24 +84,42 @@ export default function StoreSelector({ onSelect, selected }) {
         <p className="text-sm text-gray-400">No stores match "{query}".</p>
       )}
 
-      {!loading && !fetchError && (
-        <div className="flex flex-wrap gap-2">
-          {filtered.map((id) => (
-            <button
-              key={id}
-              onClick={() => onSelect(id)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
-                ${
-                  selected === id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                }`}
-            >
-              {id}
-            </button>
-          ))}
+      {!loading && !fetchError && grouped.map(([chainId, list]) => (
+        <div key={chainId} className="mb-5 last:mb-0">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            {chainLabel(chainId)} <span className="text-gray-400 font-normal">({list.length})</span>
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {list.map((s) => {
+              const isSelected = selected === s.key
+              const sub = [s.city, s.storeName].filter(Boolean).join(' · ')
+              return (
+                <button
+                  key={s.key}
+                  onClick={() => onSelect(s)}
+                  title={sub || s.key}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+                    ${
+                      isSelected
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                    }`}
+                >
+                  #{s.storeId}
+                  {sub && (
+                    <span className={`ml-2 text-xs ${isSelected ? 'text-blue-100' : 'text-blue-500'}`}>
+                      {sub}
+                    </span>
+                  )}
+                  <span className={`ml-2 text-xs ${isSelected ? 'text-blue-100' : 'text-gray-400'}`}>
+                    {s.itemCount}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </div>
-      )}
+      ))}
     </div>
   )
 }

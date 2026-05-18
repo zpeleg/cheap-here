@@ -9,7 +9,7 @@ Track progress across sessions. Check off items as they are completed.
 - [x] Scaffold monorepo directory structure
 - [x] Create `.gitignore` (exclude generated JSONs, `dist/`, `node_modules/`, `.db` files)
 - [x] Add `frontend/public/data/.gitkeep`
-- [ ] `git init` and make initial commit
+- [x] `git init` and make initial commit
 - [ ] Create GitHub repository and push
 - [ ] Add branch protection rule on `main`
 
@@ -19,13 +19,13 @@ Track progress across sessions. Check off items as they are completed.
 
 ### 1.1 Project setup
 - [x] `etl/requirements.txt` — `il-supermarket-scraper`, `duckdb`
-- [ ] Run `pip install -r requirements.txt` in `etl/` locally
+- [x] Run `pip install -r requirements.txt` in `etl/` locally
 
 ### 1.2 Configuration
 - [x] `config.py` — load `stores.json` (chain list + output dir) via `$CONFIG_PATH` env var
-- [ ] Populate `etl/stores.json` with real chain names (`ScraperFactory` keys)
-  - [ ] Check `ScraperFactory` for available chains (SHUFERSAL, RAMI_LEVY, VICTORY, MEGA, etc.)
-  - [ ] Start with 1–2 chains and verify end-to-end before enabling all
+- [x] Populate `etl/stores.json` with real chain names (`ScraperFactory` keys)
+  - [x] Check `ScraperFactory` for available chains (SHUFERSAL, RAMI_LEVY, VICTORY, MEGA, etc.)
+  - [x] Start with 1–2 chains and verify end-to-end before enabling all
 
 ### 1.3 Downloader (il-supermarket-scraper)
 - [x] `scraper.py` — wraps `ScarpingTask`; downloads to temp dir, returns `.xml` paths
