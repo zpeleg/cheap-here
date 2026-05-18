@@ -1,0 +1,11 @@
+[project]
+name = "etl"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "il-supermarket-scraper",
+    "il-supermarket-parser",
+    "duckdb>=1.1.0",
+    "pandas",
+]

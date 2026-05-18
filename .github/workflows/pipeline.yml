@@ -1,0 +1,71 @@
+name: ETL Pipeline & Deploy
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *'   # 02:00 UTC daily
+  workflow_dispatch:       # manual trigger
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Python setup (ETL) ───────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: etl/requirements.txt
+
+      # ── ETL ─────────────────────────────────────────────────────────────────
+      - name: Install ETL dependencies
+        working-directory: etl
+        run: pip install -r requirements.txt
+
+      - name: Run ETL pipeline
+        working-directory: etl
+        env:
+          CONFIG_PATH: stores.json
+        run: python main.py
+
+      - name: Verify generated data
+        run: |
+          count=$(ls frontend/public/data/store_*.json 2>/dev/null | wc -l | tr -d ' ')
+          echo "Generated ${count} store JSON files"
+          [ "${count}" -gt 0 ] || { echo "::error::No store JSON files found — ETL produced no output"; exit 1; }
+
+      # ── Node setup (frontend) ────────────────────────────────────────────────
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # ── Frontend build ───────────────────────────────────────────────────────
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+        # vite copies frontend/public/** into dist/, so generated JSONs are bundled
+
+      # ── Deploy ───────────────────────────────────────────────────────────────
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: cheap-here
+          directory: frontend/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+        # Generated JSON files live only in the Cloudflare Pages deployment.
+        # They are never committed back to the Git repository (see .gitignore).

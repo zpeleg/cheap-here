@@ -1,0 +1,5 @@
+{
+  "chains": ["RAMI_LEVY", "SHUFERSAL"],
+  "output_dir": "../frontend/public/data",
+  "limit": 0
+}

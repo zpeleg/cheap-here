@@ -1,0 +1,18 @@
+# Generated store data — lives in CF Pages, not in git
+frontend/public/data/*.json
+!frontend/public/data/.gitkeep
+
+# Build artifacts
+frontend/dist/
+etl/dist/
+
+# Dependencies
+frontend/node_modules/
+etl/node_modules/
+
+# DuckDB on-disk files (ETL uses :memory: but guard against accidents)
+*.duckdb
+*.db
+
+# macOS
+.DS_Store
