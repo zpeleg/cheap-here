@@ -92,6 +92,9 @@ class Store:
 
         df["price"] = pd.to_numeric(df["price"], errors="coerce")
         df["unit_of_measure_price"] = pd.to_numeric(df["unit_of_measure_price"], errors="coerce")
+        # Drop rows missing any dedup key — without them latest_per_branch can't
+        # group correctly. Also drop non-positive prices, which upstream uses as
+        # a sentinel for "not for sale / placeholder".
         df = df.dropna(subset=["chain_id", "store_id", "item_code", "price"])
         df = df[df["price"] > 0]
 
@@ -127,6 +130,10 @@ class Store:
         return len(df)
 
     def latest_per_branch(self) -> list[BranchItem]:
+        # A single ETL run typically ingests multiple per-snapshot CSVs per
+        # chain, so the same (chain, store, item) appears many times. Keep
+        # only the row with the newest price_update_date; NULL dates sort
+        # last so a real timestamp always beats a missing one.
         rows = self.conn.execute("""
             SELECT chain_id, sub_chain_id, store_id, item_code, item_name,
                    manufacturer, unit_qty, quantity, unit_of_measure,
@@ -140,6 +147,10 @@ class Store:
         return [BranchItem(*r) for r in rows]
 
     def branches(self) -> list[StoreInfo]:
+        # The same store appears in every stores.xml snapshot, sometimes with
+        # minor metadata drift (renamed branch, address typo fix). We don't
+        # need to reconcile those — ANY_VALUE picks one deterministically per
+        # (chain_id, store_id) so each branch shows up exactly once.
         rows = self.conn.execute("""
             SELECT chain_id,
                    ANY_VALUE(sub_chain_id) AS sub_chain_id,
@@ -158,6 +169,9 @@ class Store:
 
     @staticmethod
     def _read_csv(path: Path) -> pd.DataFrame | None:
+        # ffill=True restores values the parsers blanked out for dedup
+        # (repeated chain/store/sub_chain on consecutive rows). Without it
+        # most rows would drop in load_price_csv's dropna step above.
         df = read_data_rows(str(path), ffill=True, as_records=False)
         if df is None or df.empty:
             return None

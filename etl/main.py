@@ -1,3 +1,24 @@
+"""ETL entry point for the cheap-here price dataset.
+
+Pipeline stages, in order:
+
+1. Load configuration from ``etl/stores.json`` (chain list, row limit, output dir).
+2. Download per-chain XML dumps from the upstream price-transparency portals
+   into a temporary ``dumps/`` directory.
+3. Convert the raw XML dumps into normalized CSVs (prices + stores) under a
+   temporary ``csv/`` directory.
+4. Load the CSVs into a SQLite ``Store``, computing the latest price snapshot
+   per (branch, product) pair.
+5. Export per-branch JSON files to the configured output directory for the
+   frontend to consume.
+
+The temporary working directory is always removed on exit, even on failure.
+Exits non-zero if no chains are configured or if zero price rows are ingested
+(typically a network or upstream-format issue worth surfacing loudly).
+
+Run directly: ``python etl/main.py``.
+"""
+
 import shutil
 import sys
 import tempfile
@@ -11,6 +32,18 @@ from export import export_json
 
 
 def main() -> None:
+    """Run the full download → convert → load → export pipeline.
+
+    Side effects:
+        - Creates and deletes a temp directory under the system tempdir.
+        - Writes JSON files under ``cfg.output_dir`` (resolved relative to
+          this file when not absolute).
+        - Writes to the SQLite database backing ``Store``.
+
+    Exits:
+        - Code 1 if ``cfg.chains`` is empty.
+        - Code 1 if the pipeline ingests zero price rows.
+    """
     cfg = load_config()
 
     if not cfg.chains:
