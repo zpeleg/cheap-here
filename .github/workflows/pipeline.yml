@@ -6,6 +6,12 @@ on:
   schedule:
     - cron: '0 2 * * *'   # 02:00 UTC daily
   workflow_dispatch:       # manual trigger
+    inputs:
+      profile:
+        description: 'Scrape profile'
+        type: choice
+        options: [production, local]
+        default: production
 
 jobs:
   pipeline:
@@ -31,7 +37,8 @@ jobs:
       - name: Run ETL pipeline
         working-directory: etl
         env:
-          PROFILE: production
+          # cron → full scrape; manual → chosen profile; push → fast dev subset
+          PROFILE: ${{ github.event_name == 'schedule' && 'production' || github.event_name == 'workflow_dispatch' && inputs.profile || 'local' }}
         run: python main.py
 
       - name: Verify generated data
