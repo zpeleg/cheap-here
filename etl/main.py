@@ -49,6 +49,8 @@ def main() -> None:
     if not cfg.chains:
         sys.exit("No chains configured — populate etl/stores.json")
 
+    print(f"Profile: {cfg.profile} — {len(cfg.chains)} chains, limit={cfg.limit or 'none'}")
+
     workdir = Path(tempfile.mkdtemp(prefix="cheap_here_"))
     dump_dir = workdir / "dumps"
     csv_dir = workdir / "csv"

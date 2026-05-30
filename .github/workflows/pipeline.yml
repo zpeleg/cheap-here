@@ -31,7 +31,7 @@ jobs:
       - name: Run ETL pipeline
         working-directory: etl
         env:
-          CONFIG_PATH: stores.json
+          PROFILE: production
         run: python main.py
 
       - name: Verify generated data
