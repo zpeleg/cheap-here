@@ -14,5 +14,11 @@ etl/node_modules/
 *.duckdb
 *.db
 
+# Logs
+*.log
+
+# Scraper session cookies (may contain credentials)
+*_cookies.txt
+
 # macOS
 .DS_Store
