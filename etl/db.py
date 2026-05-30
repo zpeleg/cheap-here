@@ -346,9 +346,10 @@ def _flatten_promo_rows(df: pd.DataFrame) -> list[dict]:
         for group in _coerce_list(parsed.get("group")):
             if not isinstance(group, dict):
                 continue
-            items = _coerce_list(
-                (group.get("promotionitems") or {}).get("promotionitem"),
-            )
+            promotionitems = group.get("promotionitems")
+            if not isinstance(promotionitems, dict):
+                continue
+            items = _coerce_list(promotionitems.get("promotionitem"))
             for item in items:
                 if not isinstance(item, dict):
                     continue
