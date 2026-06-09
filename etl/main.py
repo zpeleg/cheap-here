@@ -31,6 +31,25 @@ from db import Store
 from export import export_json
 
 
+def _load_all(label: str, paths: list[Path], loader) -> int:
+    """Load every CSV through `loader`, returning total rows ingested.
+
+    A single corrupt upstream feed must not abort the multi-hour run, so
+    per-file failures are reported and skipped. Systemic failure is still
+    caught by the zero-price-rows check in main().
+    """
+    total = 0
+    for path in paths:
+        try:
+            n = loader(path)
+        except Exception as exc:
+            print(f"[{label}] {path.name} — skipped: {exc}")
+            continue
+        print(f"[{label}] {path.name} — {n} rows")
+        total += n
+    return total
+
+
 def main() -> None:
     """Run the full download → convert → load → export pipeline.
 
@@ -65,23 +84,9 @@ def main() -> None:
         store = Store()
         store.create_schema()
 
-        total_prices = 0
-        for path in price_csvs(csv_dir):
-            n = store.load_price_csv(path)
-            print(f"[prices] {path.name} — {n} rows")
-            total_prices += n
-
-        total_stores = 0
-        for path in store_csvs(csv_dir):
-            n = store.load_store_csv(path)
-            print(f"[stores] {path.name} — {n} rows")
-            total_stores += n
-
-        total_promos = 0
-        for path in promo_csvs(csv_dir):
-            n = store.load_promo_csv(path)
-            print(f"[promos] {path.name} — {n} rows")
-            total_promos += n
+        total_prices = _load_all("prices", price_csvs(csv_dir), store.load_price_csv)
+        total_stores = _load_all("stores", store_csvs(csv_dir), store.load_store_csv)
+        total_promos = _load_all("promos", promo_csvs(csv_dir), store.load_promo_csv)
 
         if total_prices == 0:
             sys.exit("No price rows ingested — verify chains and network access")
