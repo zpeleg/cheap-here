@@ -13,6 +13,12 @@ on:
         options: [production, local]
         default: production
 
+# cloudflare/pages-action creates a GitHub deployment via gitHubToken; the
+# default read-only GITHUB_TOKEN makes that call fail with 403.
+permissions:
+  contents: read
+  deployments: write
+
 jobs:
   pipeline:
     runs-on: ubuntu-latest

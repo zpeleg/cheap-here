@@ -5,7 +5,6 @@ from pathlib import Path
 
 import duckdb
 import pandas as pd
-from il_supermarket_parsers import read_data_rows
 
 
 # CSV cells that originally were empty in the XML are written as "''" by the
@@ -263,12 +262,20 @@ class Store:
 
     @staticmethod
     def _read_csv(path: Path) -> pd.DataFrame | None:
-        # ffill=True restores values the parsers blanked out for dedup
-        # (repeated chain/store/sub_chain on consecutive rows). Without it
-        # most rows would drop in load_price_csv's dropna step above.
-        df = read_data_rows(str(path), ffill=True, as_records=False)
-        if df is None or df.empty:
+        # Equivalent to il_supermarket_parsers.read_data_rows(ffill=True,
+        # as_records=False), except ragged lines are skipped instead of
+        # raising ParserError — the upstream promo feeds occasionally emit
+        # rows with stray delimiters, and one bad line must not abort a run.
+        # ffill restores values the parsers blanked out for dedup (repeated
+        # chain/store/sub_chain on consecutive rows). Without it most rows
+        # would drop in load_price_csv's dropna step above.
+        try:
+            df = pd.read_csv(path, dtype=str, on_bad_lines="skip")
+        except pd.errors.EmptyDataError:
             return None
+        if df.empty:
+            return None
+        df = df.ffill()
         df.columns = [c.lower() for c in df.columns]
         # Replace the parsers' empty sentinel with None so DuckDB stores SQL NULL.
         return df.replace({EMPTY_SENTINEL: None}).where(df.notna(), None)
