@@ -9,14 +9,21 @@
         "RAMI_LEVY",
         "YOHANANOF",
         "OSHER_AD",
-        "VICTORY",
         "VICTORY_NEW_SOURCE",
         "WOLT"
       ],
       "limit": 5
     },
     "production": {
-      "chains": "all",
+      "chains": [
+        "SHUFERSAL",
+        "TIV_TAAM",
+        "RAMI_LEVY",
+        "YOHANANOF",
+        "OSHER_AD",
+        "VICTORY_NEW_SOURCE",
+        "WOLT"
+      ],
       "limit": 0
     }
   }
