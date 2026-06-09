@@ -43,8 +43,10 @@ jobs:
       - name: Run ETL pipeline
         working-directory: etl
         env:
-          # cron → full scrape; manual → chosen profile; push → fast dev subset
-          PROFILE: ${{ github.event_name == 'schedule' && 'production' || github.event_name == 'workflow_dispatch' && inputs.profile || 'local' }}
+          # All runs on main (push or cron) use the production profile so the
+          # deployed site always has full chain coverage; manual dispatch can
+          # still pick a profile.
+          PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'production' }}
         run: python main.py
 
       - name: Verify generated data
