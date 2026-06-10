@@ -13,7 +13,8 @@
         "WOLT",
         "GOOD_PHARM",
         "YAYNO_BITAN_AND_CARREFOUR",
-        "HAZI_HINAM"
+        "HAZI_HINAM",
+        "VICTORY_NEW_SOURCE"
       ],
       "limit": 5
     },
@@ -28,7 +29,8 @@
         "WOLT",
         "GOOD_PHARM",
         "YAYNO_BITAN_AND_CARREFOUR",
-        "HAZI_HINAM"
+        "HAZI_HINAM",
+        "VICTORY_NEW_SOURCE"
       ],
       "limit": 0
     }
