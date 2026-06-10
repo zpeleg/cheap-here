@@ -8,7 +8,9 @@ from cities import load_city_names, resolve_city
 from db import BranchItem, PromoItem, StoreInfo
 
 
-MIN_DISCOUNT_VS_MEDIAN = 0.05
+# A branch lists an item only when buying it there is the national best price,
+# or close enough not to matter (within 5% of the cheapest effective price).
+NEAR_CHEAPEST_TOLERANCE = 0.05
 
 
 def export_json(
@@ -42,17 +44,23 @@ def export_json(
     # Build a "best price" filter per item_code:
     #   1. item appears in >=2 chains (cross-chain comparison must be meaningful)
     #   2. effective prices are not all identical across stores (some real variation exists)
-    #   3. this branch's effective price is at least MIN_DISCOUNT_VS_MEDIAN below
-    #      the cross-store median (i.e. a genuine deal, not a tiny rounding diff)
+    #   3. this branch's effective price is within NEAR_CHEAPEST_TOLERANCE of the
+    #      cheapest national effective price (cheapest in the country, or almost)
     chain_prices_per_item: dict[str, dict[str, list[float]]] = defaultdict(
         lambda: defaultdict(list)
     )
+    # Some chains publish prices with a blank item name (e.g. Good Pharm);
+    # borrow the name another chain reports for the same barcode.
+    item_names: dict[str, str] = {}
     for it in items:
         chain_prices_per_item[it.item_code][it.chain_id].append(effective_price(it))
+        if it.item_name and it.item_code not in item_names:
+            item_names[it.item_code] = it.item_name
 
-    # (median, max) of cross-store effective prices, for items worth exporting.
-    # The frontend shows these next to the local price so the deal is visible.
-    item_stats: dict[str, tuple[float, float]] = {}
+    # (min, median, max) of cross-store effective prices, for items worth
+    # exporting. min drives the inclusion filter; median/max are shown by the
+    # frontend next to the local price so the deal is visible.
+    item_stats: dict[str, tuple[float, float, float]] = {}
     # Per-chain price summary, cheapest chain first. Kept as bare
     # [chain_id, min_price, branch_count] arrays rather than objects: this
     # repeats for every exported item (~40k rows) and the verbose form would
@@ -64,7 +72,7 @@ def export_json(
         prices = [p for chain_ps in per_chain.values() for p in chain_ps]
         if min(prices) == max(prices):
             continue
-        item_stats[code] = (median(prices), max(prices))
+        item_stats[code] = (min(prices), median(prices), max(prices))
         item_chain_prices[code] = sorted(
             ([chain, round(min(ps), 2), len(ps)] for chain, ps in per_chain.items()),
             key=lambda entry: entry[1],
@@ -76,8 +84,8 @@ def export_json(
         stats = item_stats.get(it.item_code)
         if stats is None:
             continue
-        median_price, max_price = stats
-        if eff > median_price * (1 - MIN_DISCOUNT_VS_MEDIAN):
+        min_price, median_price, max_price = stats
+        if eff > min_price * (1 + NEAR_CHEAPEST_TOLERANCE):
             continue
         promo = promo_by_branch_item.get((it.chain_id, it.store_id, it.item_code))
         groups[(it.chain_id, it.store_id)].append({

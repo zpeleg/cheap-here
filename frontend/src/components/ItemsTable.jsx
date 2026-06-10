@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect } from 'react'
 import { chainName } from '../chains'
 
 const COLUMNS = [
-  { key: 'name',    label: 'Item Name', cmp: (a, b) => a.name.localeCompare(b.name, 'he') },
+  // name can be null (some chains omit it for store-brand barcodes)
+  { key: 'name',    label: 'Item Name', cmp: (a, b) => (a.name || '').localeCompare(b.name || '', 'he') },
   { key: 'barcode', label: 'Barcode',   cmp: (a, b) => a.barcode.localeCompare(b.barcode) },
   { key: 'sale',    label: 'Sale ₪',    cmp: (a, b) => salePrice(a) - salePrice(b) },
   { key: 'price',   label: 'Price ₪',   cmp: (a, b) => a.price - b.price },
@@ -26,17 +27,27 @@ function effectivePrice(item) {
 }
 
 // Fraction below the cross-store median (0.23 = 23% cheaper than median).
-// Items without median data (pre-feature exports) sort last via -1.
+// Exported items are near the national-cheapest price, but that can still sit
+// slightly above the median when prices cluster, so small negatives happen.
+// -Infinity sorts rows without median data (pre-feature exports) last.
 function dealPct(item) {
-  if (!item.medianPrice) return -1
+  if (!item.medianPrice) return Number.NEGATIVE_INFINITY
   return (item.medianPrice - effectivePrice(item)) / item.medianPrice
 }
 
-// Absolute ₪ saved vs the cross-store median. Always positive for exported
-// items (they beat the median by >=5%), so -1 sorts missing-data rows last.
+// Absolute ₪ saved vs the cross-store median. Slightly negative is possible
+// (see dealPct); -Infinity sorts missing-data rows last.
 function savedVsMedian(item) {
-  if (!item.medianPrice) return -1
+  if (!item.medianPrice) return Number.NEGATIVE_INFINITY
   return item.medianPrice - effectivePrice(item)
+}
+
+// Total branches nationally that carry the item, summed across chains.
+// null when the export predates chainPrices; those rows pass the min-stores
+// filter rather than silently vanishing on old data.
+function storeCount(item) {
+  if (!item.chainPrices) return null
+  return item.chainPrices.reduce((n, [, , branches]) => n + branches, 0)
 }
 
 // chainPrices entries ([chainId, minPrice, branchCount], cheapest-first per
@@ -62,6 +73,7 @@ function formatISODate(iso) {
 
 export default function ItemsTable({ items, store }) {
   const [search, setSearch]     = useState('')
+  const [minStores, setMinStores] = useState('') // hide items carried by fewer branches
   const [sortKey, setSortKey]   = useState('deal')
   const [sortAsc, setSortAsc]   = useState(false) // deal sorts best-first by default
   const [activeSale, setActiveSale] = useState(null) // { item, sale }
@@ -98,15 +110,23 @@ export default function ItemsTable({ items, store }) {
 
   const visible = useMemo(() => {
     const q = search.toLowerCase()
-    const base = q
+    let base = q
       ? items.filter(
-          (i) => i.name.toLowerCase().includes(q) || i.barcode.includes(q),
+          (i) => (i.name || '').toLowerCase().includes(q) || i.barcode.includes(q),
         )
       : items
 
+    const threshold = Number(minStores) || 0
+    if (threshold > 1) {
+      base = base.filter((i) => {
+        const n = storeCount(i)
+        return n == null || n >= threshold
+      })
+    }
+
     const col = COLUMNS.find((c) => c.key === sortKey)
     return [...base].sort((a, b) => sortAsc ? col.cmp(a, b, store) : col.cmp(b, a, store))
-  }, [items, search, sortKey, sortAsc, store])
+  }, [items, search, minStores, sortKey, sortAsc, store])
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -119,17 +139,32 @@ export default function ItemsTable({ items, store }) {
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
             {store?.city && <>{store.city} · </>}
-            {visible.length} cheapest items nationally
+            {visible.length} items cheapest in the country here (or within 5%)
           </p>
         </div>
-        <input
-          type="search"
-          placeholder="Filter by name or barcode…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-full sm:w-64
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-gray-500 whitespace-nowrap">
+            Sold in ≥
+            <input
+              type="number"
+              min="2"
+              placeholder="any"
+              value={minStores}
+              onChange={(e) => setMinStores(e.target.value)}
+              className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm w-16 text-gray-900
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            stores
+          </label>
+          <input
+            type="search"
+            placeholder="Filter by name or barcode…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-full sm:w-64
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
       </div>
 
       {/* Table */}
@@ -157,6 +192,7 @@ export default function ItemsTable({ items, store }) {
             {visible.map((item) => {
               const hasSale = !!item.sale
               const pct = item.medianPrice ? dealPct(item) : null
+              const saved = item.medianPrice != null ? savedVsMedian(item) : null
               const others = otherChainPrices(item, store)
               return (
                 <tr key={item.barcode} className="hover:bg-gray-50 transition-colors">
@@ -207,16 +243,21 @@ export default function ItemsTable({ items, store }) {
                   <td className="px-4 py-3 text-gray-500">
                     {item.maxPrice != null ? `₪${item.maxPrice.toFixed(2)}` : <span className="text-gray-300">—</span>}
                   </td>
-                  <td className="px-4 py-3 font-medium text-green-700">
-                    {item.medianPrice != null
-                      ? `₪${savedVsMedian(item).toFixed(2)}`
+                  <td className={
+                    'px-4 py-3 font-medium ' +
+                    (saved != null && saved < 0 ? 'text-gray-400' : 'text-green-700')
+                  }>
+                    {saved != null
+                      ? `${saved < 0 ? '−' : ''}₪${Math.abs(saved).toFixed(2)}`
                       : <span className="text-gray-300 font-normal">—</span>}
                   </td>
                   <td className="px-4 py-3">
                     {pct != null ? (
-                      <span className="inline-flex items-center rounded-md bg-green-100 px-2 py-0.5
-                                       text-xs font-semibold text-green-700">
-                        −{Math.round(pct * 100)}%
+                      <span className={
+                        'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ' +
+                        (pct < 0 ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-700')
+                      }>
+                        {pct < 0 ? '+' : '−'}{Math.abs(Math.round(pct * 100))}%
                       </span>
                     ) : (
                       <span className="text-gray-300">—</span>
