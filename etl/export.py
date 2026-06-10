@@ -44,21 +44,31 @@ def export_json(
     #   2. effective prices are not all identical across stores (some real variation exists)
     #   3. this branch's effective price is at least MIN_DISCOUNT_VS_MEDIAN below
     #      the cross-store median (i.e. a genuine deal, not a tiny rounding diff)
-    chains_per_item: dict[str, set[str]] = defaultdict(set)
-    prices_per_item: dict[str, list[float]] = defaultdict(list)
+    chain_prices_per_item: dict[str, dict[str, list[float]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
     for it in items:
-        chains_per_item[it.item_code].add(it.chain_id)
-        prices_per_item[it.item_code].append(effective_price(it))
+        chain_prices_per_item[it.item_code][it.chain_id].append(effective_price(it))
 
     # (median, max) of cross-store effective prices, for items worth exporting.
     # The frontend shows these next to the local price so the deal is visible.
     item_stats: dict[str, tuple[float, float]] = {}
-    for code, prices in prices_per_item.items():
-        if len(chains_per_item[code]) < 2:
+    # Per-chain price summary, cheapest chain first. Kept as bare
+    # [chain_id, min_price, branch_count] arrays rather than objects: this
+    # repeats for every exported item (~40k rows) and the verbose form would
+    # roughly double the JSON payload.
+    item_chain_prices: dict[str, list[list]] = {}
+    for code, per_chain in chain_prices_per_item.items():
+        if len(per_chain) < 2:
             continue
+        prices = [p for chain_ps in per_chain.values() for p in chain_ps]
         if min(prices) == max(prices):
             continue
         item_stats[code] = (median(prices), max(prices))
+        item_chain_prices[code] = sorted(
+            ([chain, round(min(ps), 2), len(ps)] for chain, ps in per_chain.items()),
+            key=lambda entry: entry[1],
+        )
 
     groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for it in items:
@@ -81,6 +91,7 @@ def export_json(
             "effectivePrice": eff,
             "medianPrice": round(median_price, 2),
             "maxPrice": round(max_price, 2),
+            "chainPrices": item_chain_prices[it.item_code],
             "unitPrice": it.unit_of_measure_price,
             "updatedAt": it.price_update_date,
             "sale":     _sale_payload(promo) if promo else None,

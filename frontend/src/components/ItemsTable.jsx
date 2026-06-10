@@ -1,25 +1,17 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { chainName } from '../chains'
 
 const COLUMNS = [
   { key: 'name',    label: 'Item Name', cmp: (a, b) => a.name.localeCompare(b.name, 'he') },
   { key: 'barcode', label: 'Barcode',   cmp: (a, b) => a.barcode.localeCompare(b.barcode) },
   { key: 'sale',    label: 'Sale ₪',    cmp: (a, b) => salePrice(a) - salePrice(b) },
   { key: 'price',   label: 'Price ₪',   cmp: (a, b) => a.price - b.price },
+  { key: 'others',  label: 'Elsewhere ₪', cmp: (a, b, store) => cheapestOtherPrice(a, store) - cheapestOtherPrice(b, store) },
   { key: 'median',  label: 'Median ₪',  cmp: (a, b) => (a.medianPrice ?? 0) - (b.medianPrice ?? 0) },
   { key: 'max',     label: 'Max ₪',     cmp: (a, b) => (a.maxPrice ?? 0) - (b.maxPrice ?? 0) },
   { key: 'saved',   label: 'Saved ₪',   cmp: (a, b) => savedVsMedian(a) - savedVsMedian(b), defaultDesc: true },
   { key: 'deal',    label: 'Deal',      cmp: (a, b) => dealPct(a) - dealPct(b), defaultDesc: true },
 ]
-
-const CHAIN_NAMES = {
-  '7290027600007': 'Shufersal',
-  '7290058140886': 'Rami Levy',
-  '7290873255550': 'Tiv Taam',
-  '7290803800003': 'Yohananof',
-  '7290103152017': 'Osher Ad',
-  '7290696200003': 'Victory',
-  '7290058103393': 'Victory',
-}
 
 // Sentinel so unsorted-on-sale-column rows sort last instead of treating
 // "no sale" as ₪0. Plays well with both ascending and descending order.
@@ -47,6 +39,20 @@ function savedVsMedian(item) {
   return item.medianPrice - effectivePrice(item)
 }
 
+// chainPrices entries ([chainId, minPrice, branchCount], cheapest-first per
+// the exporter) for every chain except the one being viewed.
+function otherChainPrices(item, store) {
+  if (!item.chainPrices) return []
+  return item.chainPrices.filter(([chainId]) => chainId !== store?.chainId)
+}
+
+// Cheapest competing chain's min price. Infinity sorts items without
+// cross-chain data last, same trick as NO_SALE above.
+function cheapestOtherPrice(item, store) {
+  const others = otherChainPrices(item, store)
+  return others.length ? others[0][1] : Number.POSITIVE_INFINITY
+}
+
 function formatISODate(iso) {
   if (!iso) return null
   const [y, m, d] = iso.split('-')
@@ -59,6 +65,28 @@ export default function ItemsTable({ items, store }) {
   const [sortKey, setSortKey]   = useState('deal')
   const [sortAsc, setSortAsc]   = useState(false) // deal sorts best-first by default
   const [activeSale, setActiveSale] = useState(null) // { item, sale }
+  const [chainTip, setChainTip] = useState(null) // { item, left, top, bottom, above }
+
+  // The tooltip is position:fixed (the table's overflow-x-auto would clip an
+  // absolutely positioned one), so any scroll leaves it floating — dismiss.
+  useEffect(() => {
+    if (!chainTip) return
+    const hide = () => setChainTip(null)
+    window.addEventListener('scroll', hide, true)
+    return () => window.removeEventListener('scroll', hide, true)
+  }, [chainTip])
+
+  const showChainTip = (item, cell) => {
+    const rect = cell.getBoundingClientRect()
+    const estHeight = item.chainPrices.length * 28 + 40
+    setChainTip({
+      item,
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - 288)),
+      top: rect.bottom + 6,
+      bottom: window.innerHeight - rect.top + 6,
+      above: rect.bottom + estHeight + 6 > window.innerHeight,
+    })
+  }
 
   const toggleSort = (key) => {
     if (sortKey === key) setSortAsc((v) => !v)
@@ -77,8 +105,8 @@ export default function ItemsTable({ items, store }) {
       : items
 
     const col = COLUMNS.find((c) => c.key === sortKey)
-    return [...base].sort((a, b) => sortAsc ? col.cmp(a, b) : col.cmp(b, a))
-  }, [items, search, sortKey, sortAsc])
+    return [...base].sort((a, b) => sortAsc ? col.cmp(a, b, store) : col.cmp(b, a, store))
+  }, [items, search, sortKey, sortAsc, store])
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -86,7 +114,7 @@ export default function ItemsTable({ items, store }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-gray-100">
         <div>
           <h2 className="font-semibold text-gray-800">
-            {CHAIN_NAMES[store?.chainId] || store?.chainId} · Store #{store?.storeId}
+            {chainName(store?.chainId)} · Store #{store?.storeId}
             {store?.storeName && <span className="text-gray-500 font-normal"> — {store.storeName}</span>}
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
@@ -129,6 +157,7 @@ export default function ItemsTable({ items, store }) {
             {visible.map((item) => {
               const hasSale = !!item.sale
               const pct = item.medianPrice ? dealPct(item) : null
+              const others = otherChainPrices(item, store)
               return (
                 <tr key={item.barcode} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-gray-900">{item.name}</td>
@@ -154,6 +183,23 @@ export default function ItemsTable({ items, store }) {
                     (hasSale ? 'text-gray-400 line-through' : 'text-green-700')
                   }>
                     ₪{item.price.toFixed(2)}
+                  </td>
+                  <td
+                    className="px-4 py-3 whitespace-nowrap"
+                    onMouseEnter={others.length ? (e) => showChainTip(item, e.currentTarget) : undefined}
+                    onMouseLeave={others.length ? () => setChainTip(null) : undefined}
+                  >
+                    {others.length ? (
+                      <span className="cursor-help border-b border-dotted border-gray-400">
+                        <span className="text-gray-700">₪{others[0][1].toFixed(2)}</span>
+                        <span className="ml-1 text-xs text-gray-400">{chainName(others[0][0])}</span>
+                        {others.length > 1 && (
+                          <span className="ml-1 text-xs font-medium text-blue-500">+{others.length - 1}</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-gray-500">
                     {item.medianPrice != null ? `₪${item.medianPrice.toFixed(2)}` : <span className="text-gray-300">—</span>}
@@ -187,6 +233,8 @@ export default function ItemsTable({ items, store }) {
         <p className="text-center text-gray-400 py-10 text-sm">No items match your filter.</p>
       )}
 
+      {chainTip && <ChainPricesTip tip={chainTip} store={store} />}
+
       {activeSale && (
         <SaleModal
           item={activeSale.item}
@@ -194,6 +242,47 @@ export default function ItemsTable({ items, store }) {
           onClose={() => setActiveSale(null)}
         />
       )}
+    </div>
+  )
+}
+
+function ChainPricesTip({ tip, store }) {
+  const { item, left, top, bottom, above } = tip
+  return (
+    <div
+      className="fixed z-50 w-72 rounded-lg border border-gray-200 bg-white
+                 shadow-lg pointer-events-none"
+      style={{ left, ...(above ? { bottom } : { top }) }}
+    >
+      <div className="px-3 py-1.5 border-b border-gray-100 text-[11px] font-medium uppercase
+                      tracking-wider text-gray-400">
+        Cheapest per chain
+      </div>
+      <div className="py-1">
+        {item.chainPrices.map(([chainId, price, branches]) => {
+          const isHere = chainId === store?.chainId
+          return (
+            <div
+              key={chainId}
+              className={
+                'flex items-baseline justify-between gap-4 px-3 py-1 text-xs ' +
+                (isHere ? 'bg-blue-50' : '')
+              }
+            >
+              <span className={isHere ? 'font-semibold text-blue-700' : 'text-gray-700'}>
+                {chainName(chainId)}
+                {isHere && ' · here'}
+                <span className="ml-1 text-gray-400 font-normal">
+                  {branches > 1 ? `${branches} stores` : '1 store'}
+                </span>
+              </span>
+              <span className={'font-medium ' + (isHere ? 'text-blue-700' : 'text-gray-900')}>
+                ₪{price.toFixed(2)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
