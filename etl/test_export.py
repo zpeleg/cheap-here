@@ -1,0 +1,56 @@
+import json
+
+from db import BranchItem
+from export import export_json
+
+
+def _item(chain_id: str, store_id: str, code: str, name: str | None, price: float) -> BranchItem:
+    return BranchItem(
+        chain_id=chain_id,
+        sub_chain_id="1",
+        store_id=store_id,
+        item_code=code,
+        item_name=name,
+        manufacturer="",
+        unit_qty="",
+        quantity="1",
+        unit_of_measure="יחידה",
+        price=price,
+        unit_of_measure_price=None,
+        price_update_date="2026-06-10",
+    )
+
+
+def _exported(path):
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return [(p["barcode"], p["name"]) for p in data["items"]]
+
+
+def test_nameless_item_borrows_name_from_other_chain(tmp_path):
+    # Prices are within NEAR_CHEAPEST_TOLERANCE of each other so both
+    # branches pass the best-price filter.
+    items = [
+        _item("chainA", "001", "111", "שמפו", 10.0),
+        _item("chainB", "002", "111", None, 9.8),
+    ]
+
+    export_json(items, stores=[], promos=[], output_dir=tmp_path)
+
+    assert _exported(tmp_path / "store_chainA_001.json") == [("111", "שמפו")]
+    assert _exported(tmp_path / "store_chainB_002.json") == [("111", "שמפו")]
+
+
+def test_item_unnamed_in_every_chain_is_dropped(tmp_path):
+    items = [
+        # Named item, so both branch files exist at all.
+        _item("chainA", "001", "111", "שמפו", 10.0),
+        _item("chainB", "002", "111", None, 9.8),
+        # No chain names this barcode (None and empty string).
+        _item("chainA", "001", "222", None, 5.0),
+        _item("chainB", "002", "222", "", 4.9),
+    ]
+
+    export_json(items, stores=[], promos=[], output_dir=tmp_path)
+
+    assert _exported(tmp_path / "store_chainA_001.json") == [("111", "שמפו")]
+    assert _exported(tmp_path / "store_chainB_002.json") == [("111", "שמפו")]

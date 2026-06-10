@@ -87,10 +87,15 @@ def export_json(
         min_price, median_price, max_price = stats
         if eff > min_price * (1 + NEAR_CHEAPEST_TOLERANCE):
             continue
+        name = it.item_name or item_names.get(it.item_code)
+        if name is None:
+            # No chain has a name for this barcode; a nameless row can't
+            # guide a purchase.
+            continue
         promo = promo_by_branch_item.get((it.chain_id, it.store_id, it.item_code))
         groups[(it.chain_id, it.store_id)].append({
             "barcode":  it.item_code,
-            "name":     it.item_name,
+            "name":     name,
             "manufacturer": it.manufacturer,
             "unitQty":  it.unit_qty,
             "quantity": it.quantity,
