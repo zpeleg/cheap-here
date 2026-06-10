@@ -8,6 +8,10 @@ const CHAIN_NAMES = {
   '7290103152017': 'Osher Ad',
   '7290696200003': 'Victory',
   '7290058103393': 'Victory',
+  '7290058249350': 'Wolt Market',
+  '7290058197699': 'Good Pharm',
+  '7290055700007': 'Carrefour',
+  '7290700100008': 'Hazi Hinam',
 }
 
 const chainLabel = (id) => CHAIN_NAMES[id] || id
@@ -38,6 +42,7 @@ export default function StoreSelector({ onSelect, selected }) {
         s.key,
         s.storeName,
         s.city,
+        s.address,
         chainLabel(s.chainId),
       ]
         .filter(Boolean)

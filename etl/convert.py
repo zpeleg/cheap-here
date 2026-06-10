@@ -2,7 +2,7 @@ from pathlib import Path
 
 from il_supermarket_parsers import ConvertingTask, FileTypesFilters
 
-from scraper import PRICE_FILE_TYPES
+from scraper import ALL_FILE_TYPES
 
 
 def convert(chains: list[str], dump_dir: Path, csv_dir: Path) -> None:
@@ -25,7 +25,7 @@ def convert(chains: list[str], dump_dir: Path, csv_dir: Path) -> None:
             "base_path": str(status_dir),
         },
         enabled_parsers=chains,
-        files_types=PRICE_FILE_TYPES,
+        files_types=ALL_FILE_TYPES,
     )
     task.start()
     task.join()

@@ -10,7 +10,10 @@
         "YOHANANOF",
         "OSHER_AD",
         "VICTORY_NEW_SOURCE",
-        "WOLT"
+        "WOLT",
+        "GOOD_PHARM",
+        "YAYNO_BITAN_AND_CARREFOUR",
+        "HAZI_HINAM"
       ],
       "limit": 5
     },
@@ -22,7 +25,10 @@
         "YOHANANOF",
         "OSHER_AD",
         "VICTORY_NEW_SOURCE",
-        "WOLT"
+        "WOLT",
+        "GOOD_PHARM",
+        "YAYNO_BITAN_AND_CARREFOUR",
+        "HAZI_HINAM"
       ],
       "limit": 0
     }

@@ -18,6 +18,18 @@ EMPTY_SENTINEL = "''"
 PROMO_MISSING_VALUES = {"", "NO_BODY", EMPTY_SENTINEL}
 
 
+def normalize_store_id(store_id) -> str:
+    """Canonicalise store IDs to three-digit zero-padded form.
+
+    Padding is inconsistent both across feeds (Shufersal stores XML says
+    ``13``, its price files say ``013``) and within one chain's price feed
+    (Carrefour mixes ``0002`` and ``012``). Every ingest path runs through
+    this so (chain_id, store_id) joins and dedup keys always line up.
+    """
+    s = str(store_id).strip().lstrip("0")
+    return (s or "0").zfill(3)
+
+
 @dataclass
 class BranchItem:
     chain_id: str
@@ -140,6 +152,7 @@ class Store:
 
         if df.empty:
             return 0
+        df["store_id"] = df["store_id"].map(normalize_store_id)
 
         self.conn.register("_prices_df", df)
         self.conn.execute("INSERT INTO prices SELECT * FROM _prices_df")
@@ -216,10 +229,23 @@ class Store:
 
         if df.empty:
             return 0
+        df["store_id"] = df["store_id"].map(normalize_store_id)
 
         self.conn.register("_stores_df", df)
         self.conn.execute("INSERT INTO stores SELECT * FROM _stores_df")
         self.conn.unregister("_stores_df")
+        return len(df)
+
+    def load_store_rows(self, rows: list[dict]) -> int:
+        """Insert pre-normalised store rows (keys matching the stores columns)."""
+        if not rows:
+            return 0
+        df = pd.DataFrame(rows, columns=[
+            "chain_id", "sub_chain_id", "store_id", "store_name", "address", "city",
+        ])
+        self.conn.register("_store_rows_df", df)
+        self.conn.execute("INSERT INTO stores SELECT * FROM _store_rows_df")
+        self.conn.unregister("_store_rows_df")
         return len(df)
 
     def latest_per_branch(self) -> list[BranchItem]:
@@ -380,7 +406,7 @@ def _flatten_promo_rows(df: pd.DataFrame) -> list[dict]:
 
                 out.append({
                     "chain_id":       chain_id,
-                    "store_id":       store_id,
+                    "store_id":       normalize_store_id(store_id),
                     "item_code":      str(code).strip(),
                     "description":    description,
                     "start_date":     start_date,

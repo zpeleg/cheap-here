@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
 
+from cities import load_city_names, resolve_city
 from db import BranchItem, PromoItem, StoreInfo
 
 
@@ -23,6 +24,7 @@ def export_json(
         stale.unlink()
 
     store_meta = {(s.chain_id, s.store_id): s for s in stores}
+    city_names = load_city_names()
     # PromoItem is already best-per-branch-item — see Store.active_promos_per_branch.
     promo_by_branch_item: dict[tuple[str, str, str], PromoItem] = {
         (p.chain_id, p.store_id, p.item_code): p for p in promos
@@ -88,7 +90,7 @@ def export_json(
 
         meta = store_meta.get((chain_id, store_id))
         store_name = meta.store_name if meta else None
-        city = meta.city if meta else None
+        city = resolve_city(meta.city, city_names) if meta else None
         address = meta.address if meta else None
 
         (output_dir / f"store_{key}.json").write_text(
@@ -111,6 +113,7 @@ def export_json(
             "storeId":   store_id,
             "storeName": store_name,
             "city":      city,
+            "address":   address,
             "itemCount": len(products),
         })
 

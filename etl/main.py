@@ -29,6 +29,7 @@ from scraper import download
 from convert import convert, price_csvs, store_csvs, promo_csvs
 from db import Store
 from export import export_json
+from stores_xml import load_stores_from_xml, SKIPPED_STORE_CSV_STEMS
 
 
 def _load_all(label: str, paths: list[Path], loader) -> int:
@@ -85,7 +86,12 @@ def main() -> None:
         store.create_schema()
 
         total_prices = _load_all("prices", price_csvs(csv_dir), store.load_price_csv)
-        total_stores = _load_all("stores", store_csvs(csv_dir), store.load_store_csv)
+        # Some chains' store CSVs are unusable (the parsers package drops every
+        # sub-chain but the last) — parse their Stores XML dumps directly
+        # instead. See stores_xml.py.
+        other_store_csvs = [p for p in store_csvs(csv_dir) if p.stem not in SKIPPED_STORE_CSV_STEMS]
+        total_stores = _load_all("stores", other_store_csvs, store.load_store_csv)
+        total_stores += load_stores_from_xml(dump_dir, store)
         total_promos = _load_all("promos", promo_csvs(csv_dir), store.load_promo_csv)
 
         if total_prices == 0:
