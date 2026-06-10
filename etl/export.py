@@ -50,19 +50,24 @@ def export_json(
         chains_per_item[it.item_code].add(it.chain_id)
         prices_per_item[it.item_code].append(effective_price(it))
 
-    item_thresholds: dict[str, float] = {}
+    # (median, max) of cross-store effective prices, for items worth exporting.
+    # The frontend shows these next to the local price so the deal is visible.
+    item_stats: dict[str, tuple[float, float]] = {}
     for code, prices in prices_per_item.items():
         if len(chains_per_item[code]) < 2:
             continue
         if min(prices) == max(prices):
             continue
-        item_thresholds[code] = median(prices) * (1 - MIN_DISCOUNT_VS_MEDIAN)
+        item_stats[code] = (median(prices), max(prices))
 
     groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for it in items:
         eff = effective_price(it)
-        threshold = item_thresholds.get(it.item_code)
-        if threshold is None or eff > threshold:
+        stats = item_stats.get(it.item_code)
+        if stats is None:
+            continue
+        median_price, max_price = stats
+        if eff > median_price * (1 - MIN_DISCOUNT_VS_MEDIAN):
             continue
         promo = promo_by_branch_item.get((it.chain_id, it.store_id, it.item_code))
         groups[(it.chain_id, it.store_id)].append({
@@ -74,6 +79,8 @@ def export_json(
             "unit":     it.unit_of_measure,
             "price":    it.price,
             "effectivePrice": eff,
+            "medianPrice": round(median_price, 2),
+            "maxPrice": round(max_price, 2),
             "unitPrice": it.unit_of_measure_price,
             "updatedAt": it.price_update_date,
             "sale":     _sale_payload(promo) if promo else None,

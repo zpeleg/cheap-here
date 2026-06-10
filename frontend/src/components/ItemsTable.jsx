@@ -5,6 +5,10 @@ const COLUMNS = [
   { key: 'barcode', label: 'Barcode',   cmp: (a, b) => a.barcode.localeCompare(b.barcode) },
   { key: 'sale',    label: 'Sale ₪',    cmp: (a, b) => salePrice(a) - salePrice(b) },
   { key: 'price',   label: 'Price ₪',   cmp: (a, b) => a.price - b.price },
+  { key: 'median',  label: 'Median ₪',  cmp: (a, b) => (a.medianPrice ?? 0) - (b.medianPrice ?? 0) },
+  { key: 'max',     label: 'Max ₪',     cmp: (a, b) => (a.maxPrice ?? 0) - (b.maxPrice ?? 0) },
+  { key: 'saved',   label: 'Saved ₪',   cmp: (a, b) => savedVsMedian(a) - savedVsMedian(b), defaultDesc: true },
+  { key: 'deal',    label: 'Deal',      cmp: (a, b) => dealPct(a) - dealPct(b), defaultDesc: true },
 ]
 
 const CHAIN_NAMES = {
@@ -25,6 +29,24 @@ function salePrice(item) {
   return item.sale ? item.sale.perUnitPrice : NO_SALE
 }
 
+function effectivePrice(item) {
+  return item.effectivePrice ?? (item.sale ? item.sale.perUnitPrice : item.price)
+}
+
+// Fraction below the cross-store median (0.23 = 23% cheaper than median).
+// Items without median data (pre-feature exports) sort last via -1.
+function dealPct(item) {
+  if (!item.medianPrice) return -1
+  return (item.medianPrice - effectivePrice(item)) / item.medianPrice
+}
+
+// Absolute ₪ saved vs the cross-store median. Always positive for exported
+// items (they beat the median by >=5%), so -1 sorts missing-data rows last.
+function savedVsMedian(item) {
+  if (!item.medianPrice) return -1
+  return item.medianPrice - effectivePrice(item)
+}
+
 function formatISODate(iso) {
   if (!iso) return null
   const [y, m, d] = iso.split('-')
@@ -34,13 +56,16 @@ function formatISODate(iso) {
 
 export default function ItemsTable({ items, store }) {
   const [search, setSearch]     = useState('')
-  const [sortKey, setSortKey]   = useState('price')
-  const [sortAsc, setSortAsc]   = useState(true)
+  const [sortKey, setSortKey]   = useState('deal')
+  const [sortAsc, setSortAsc]   = useState(false) // deal sorts best-first by default
   const [activeSale, setActiveSale] = useState(null) // { item, sale }
 
   const toggleSort = (key) => {
     if (sortKey === key) setSortAsc((v) => !v)
-    else { setSortKey(key); setSortAsc(true) }
+    else {
+      setSortKey(key)
+      setSortAsc(!COLUMNS.find((c) => c.key === key).defaultDesc)
+    }
   }
 
   const visible = useMemo(() => {
@@ -103,6 +128,7 @@ export default function ItemsTable({ items, store }) {
           <tbody className="divide-y divide-gray-100">
             {visible.map((item) => {
               const hasSale = !!item.sale
+              const pct = item.medianPrice ? dealPct(item) : null
               return (
                 <tr key={item.barcode} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-gray-900">{item.name}</td>
@@ -128,6 +154,27 @@ export default function ItemsTable({ items, store }) {
                     (hasSale ? 'text-gray-400 line-through' : 'text-green-700')
                   }>
                     ₪{item.price.toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">
+                    {item.medianPrice != null ? `₪${item.medianPrice.toFixed(2)}` : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">
+                    {item.maxPrice != null ? `₪${item.maxPrice.toFixed(2)}` : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-green-700">
+                    {item.medianPrice != null
+                      ? `₪${savedVsMedian(item).toFixed(2)}`
+                      : <span className="text-gray-300 font-normal">—</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {pct != null ? (
+                      <span className="inline-flex items-center rounded-md bg-green-100 px-2 py-0.5
+                                       text-xs font-semibold text-green-700">
+                        −{Math.round(pct * 100)}%
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
                   </td>
                 </tr>
               )
