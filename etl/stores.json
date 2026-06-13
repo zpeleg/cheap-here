@@ -1,40 +1,21 @@
 {
   "output_dir": "../frontend/public/data",
   "default_profile": "local",
+  "chains": [
+    "SHUFERSAL",
+    "TIV_TAAM",
+    "RAMI_LEVY",
+    "YOHANANOF",
+    "OSHER_AD",
+    "VICTORY_NEW_SOURCE",
+    "WOLT",
+    "GOOD_PHARM",
+    "YAYNO_BITAN_AND_CARREFOUR",
+    "HAZI_HINAM",
+    "DOR_ALON"
+  ],
   "profiles": {
-    "local": {
-      "chains": [
-        "SHUFERSAL",
-        "TIV_TAAM",
-        "RAMI_LEVY",
-        "YOHANANOF",
-        "OSHER_AD",
-        "VICTORY_NEW_SOURCE",
-        "WOLT",
-        "GOOD_PHARM",
-        "YAYNO_BITAN_AND_CARREFOUR",
-        "HAZI_HINAM",
-        "VICTORY_NEW_SOURCE",
-        "DOR_ALON"
-      ],
-      "limit": 5
-    },
-    "production": {
-      "chains": [
-        "SHUFERSAL",
-        "TIV_TAAM",
-        "RAMI_LEVY",
-        "YOHANANOF",
-        "OSHER_AD",
-        "VICTORY_NEW_SOURCE",
-        "WOLT",
-        "GOOD_PHARM",
-        "YAYNO_BITAN_AND_CARREFOUR",
-        "HAZI_HINAM",
-        "VICTORY_NEW_SOURCE",
-        "DOR_ALON"
-      ],
-      "limit": 0
-    }
+    "local": { "limit": 5 },
+    "production": { "limit": 0 }
   }
 }

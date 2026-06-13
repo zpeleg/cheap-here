@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from statistics import median
 
+from chains import CHAIN_NAMES
 from cities import load_city_names, resolve_city
 from db import BranchItem, PromoItem, StoreInfo
 
@@ -148,8 +149,19 @@ def export_json(
             "itemCount": len(products),
         })
 
+    # Chain name lookup for the frontend, limited to chains present in this run.
+    # Unknown chain ids are omitted; the frontend falls back to the raw id.
+    chains_meta = {
+        e["chainId"]: CHAIN_NAMES[e["chainId"]]
+        for e in index_entries
+        if e["chainId"] in CHAIN_NAMES
+    }
+
     (output_dir / "stores.json").write_text(
-        json.dumps({"updatedAt": updated_at, "stores": index_entries}, ensure_ascii=False),
+        json.dumps(
+            {"updatedAt": updated_at, "chains": chains_meta, "stores": index_entries},
+            ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 

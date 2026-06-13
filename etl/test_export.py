@@ -40,6 +40,23 @@ def test_nameless_item_borrows_name_from_other_chain(tmp_path):
     assert _exported(tmp_path / "store_chainB_002.json") == [("111", "שמפו")]
 
 
+def test_index_exposes_chain_names_for_present_chains(tmp_path):
+    # The index carries a chainId -> display-name map so the frontend doesn't
+    # hardcode its own copy. Only chains present in the run are included.
+    items = [
+        _item("7290027600007", "001", "111", "שמפו", 10.0),
+        _item("7290058140886", "002", "111", "שמפו", 9.8),
+    ]
+
+    export_json(items, stores=[], promos=[], output_dir=tmp_path)
+
+    index = json.loads((tmp_path / "stores.json").read_text(encoding="utf-8"))
+    assert index["chains"] == {
+        "7290027600007": "Shufersal",
+        "7290058140886": "Rami Levy",
+    }
+
+
 def test_item_unnamed_in_every_chain_is_dropped(tmp_path):
     items = [
         # Named item, so both branch files exist at all.

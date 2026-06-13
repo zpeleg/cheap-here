@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import StoreSelector from './components/StoreSelector'
 import ItemsTable from './components/ItemsTable'
+import { setChainNames } from './chains'
 
 const formatUpdated = (iso) => {
   const d = new Date(iso)
@@ -26,7 +27,10 @@ export default function App() {
   useEffect(() => {
     fetch('/data/stores.json')
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => setUpdatedAt(data?.updatedAt ?? null))
+      .then((data) => {
+        if (data?.chains) setChainNames(data.chains)
+        setUpdatedAt(data?.updatedAt ?? null)
+      })
       .catch(() => {})
   }, [])
 

@@ -32,9 +32,13 @@ def load_config() -> Config:
         raise SystemExit(f"Unknown PROFILE {profile!r}; available: {sorted(profiles)}")
     selected = profiles[profile]
 
+    # Chains are shared across profiles (defined at the top level); a profile may
+    # still override with its own list. Profiles otherwise differ only by `limit`.
+    chains = selected.get("chains", data.get("chains", []))
+
     return Config(
         profile=profile,
-        chains=_resolve_chains(selected.get("chains", [])),
+        chains=_resolve_chains(chains),
         output_dir=Path(data.get("output_dir", "../frontend/public/data")),
         limit=int(selected.get("limit", 0)),
     )
