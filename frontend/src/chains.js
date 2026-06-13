@@ -1,16 +1,10 @@
-export const CHAIN_NAMES = {
-  '7290027600007': 'Shufersal',
-  '7290058140886': 'Rami Levy',
-  '7290873255550': 'Tiv Taam',
-  '7290803800003': 'Yohananof',
-  '7290103152017': 'Osher Ad',
-  '7290696200003': 'Victory',
-  '7290058103393': 'Victory',
-  '7290058249350': 'Wolt Market',
-  '7290058197699': 'Good Pharm',
-  '7290055700007': 'Carrefour',
-  '7290700100008': 'Hazi Hinam',
-  '7290492000005': 'am:pm',
+// Chain display names come from the data export (the `chains` map in
+// stores.json), so the ETL is the single source of truth. The map is populated
+// once stores.json is fetched; until then chainName falls back to the raw id.
+let chainNames = {}
+
+export const setChainNames = (map) => {
+  chainNames = map || {}
 }
 
-export const chainName = (chainId) => CHAIN_NAMES[chainId] || chainId
+export const chainName = (chainId) => chainNames[chainId] || chainId

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { chainName as chainLabel } from '../chains'
+import { chainName as chainLabel, setChainNames } from '../chains'
 
 export default function StoreSelector({ onSelect, selected }) {
   const [stores, setStores] = useState([])
@@ -13,7 +13,10 @@ export default function StoreSelector({ onSelect, selected }) {
         if (!r.ok) throw new Error()
         return r.json()
       })
-      .then((data) => setStores(data.stores || []))
+      .then((data) => {
+        setChainNames(data.chains)
+        setStores(data.stores || [])
+      })
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false))
   }, [])
