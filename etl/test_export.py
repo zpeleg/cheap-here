@@ -27,11 +27,14 @@ def _exported(path):
 
 
 def test_nameless_item_borrows_name_from_other_chain(tmp_path):
-    # Prices are within NEAR_CHEAPEST_TOLERANCE of each other so both
-    # branches pass the best-price filter.
+    # Two cheap branches sit >=MIN_DEAL_DISCOUNT below the cross-store median
+    # (pulled up by the pricier chains), so both pass the deal filter. The
+    # nameless branch borrows "שמפו" from the named one.
     items = [
-        _item("chainA", "001", "111", "שמפו", 10.0),
-        _item("chainB", "002", "111", None, 9.8),
+        _item("chainA", "001", "111", "שמפו", 7.0),
+        _item("chainB", "002", "111", None, 7.0),
+        _item("chainC", "003", "111", "שמפו", 10.0),
+        _item("chainD", "004", "111", "שמפו", 10.0),
     ]
 
     export_json(items, stores=[], promos=[], output_dir=tmp_path)
@@ -44,8 +47,10 @@ def test_index_exposes_chain_names_for_present_chains(tmp_path):
     # The index carries a chainId -> display-name map so the frontend doesn't
     # hardcode its own copy. Only chains present in the run are included.
     items = [
-        _item("7290027600007", "001", "111", "שמפו", 10.0),
-        _item("7290058140886", "002", "111", "שמפו", 9.8),
+        _item("7290027600007", "001", "111", "שמפו", 7.0),
+        _item("7290058140886", "002", "111", "שמפו", 7.0),
+        _item("7290027600007", "009", "111", "שמפו", 10.0),
+        _item("7290058140886", "009", "111", "שמפו", 10.0),
     ]
 
     export_json(items, stores=[], promos=[], output_dir=tmp_path)
@@ -59,12 +64,17 @@ def test_index_exposes_chain_names_for_present_chains(tmp_path):
 
 def test_item_unnamed_in_every_chain_is_dropped(tmp_path):
     items = [
-        # Named item, so both branch files exist at all.
-        _item("chainA", "001", "111", "שמפו", 10.0),
-        _item("chainB", "002", "111", None, 9.8),
-        # No chain names this barcode (None and empty string).
-        _item("chainA", "001", "222", None, 5.0),
-        _item("chainB", "002", "222", "", 4.9),
+        # Named item, a clear deal in chains A and B (median pulled up by C/D).
+        _item("chainA", "001", "111", "שמפו", 7.0),
+        _item("chainB", "002", "111", "שמפו", 7.0),
+        _item("chainC", "003", "111", "שמפו", 10.0),
+        _item("chainD", "004", "111", "שמפו", 10.0),
+        # Same deal-worthy price shape, but no chain names this barcode (None
+        # and empty string), so it's dropped despite being cheap.
+        _item("chainA", "001", "222", None, 4.0),
+        _item("chainB", "002", "222", "", 4.0),
+        _item("chainC", "003", "222", None, 10.0),
+        _item("chainD", "004", "222", None, 10.0),
     ]
 
     export_json(items, stores=[], promos=[], output_dir=tmp_path)

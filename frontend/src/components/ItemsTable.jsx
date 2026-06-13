@@ -153,7 +153,7 @@ export default function ItemsTable({ items, store }) {
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
             {store?.city && <>{store.city} · </>}
-            {visible.length} items cheapest in the country here (or within 5%)
+            {visible.length} items at least 5% below the national median here
           </p>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
