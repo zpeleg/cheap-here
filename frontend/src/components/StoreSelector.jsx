@@ -54,32 +54,32 @@ export default function StoreSelector({ onSelect, selected }) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h2 className="text-base font-semibold text-gray-700 mb-4">Select a branch</h2>
+      <h2 className="text-base font-semibold text-gray-700 mb-4">בחרו סניף</h2>
 
       <input
         type="search"
-        placeholder="Search by store ID, name, or city…"
+        placeholder="חיפוש לפי מספר חנות, שם או עיר…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         className="w-full sm:w-96 border border-gray-300 rounded-lg px-4 py-2 text-sm mb-5
                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
       />
 
-      {loading && <p className="text-sm text-gray-400">Loading stores…</p>}
+      {loading && <p className="text-sm text-gray-400">טוען חנויות…</p>}
 
       {fetchError && (
         <p className="text-sm text-red-500">
-          Could not load stores.json — run the ETL pipeline first.
+          לא ניתן לטעון את stores.json — הריצו תחילה את תהליך ה‑ETL.
         </p>
       )}
 
       {!loading && !fetchError && filtered.length === 0 && (
-        <p className="text-sm text-gray-400">No stores match "{query}".</p>
+        <p className="text-sm text-gray-400">אין חנויות שתואמות ל‑"{query}".</p>
       )}
 
       {!loading && !fetchError && grouped.map(([chainId, list]) => (
         <div key={chainId} className="mb-5 last:mb-0">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+          <h3 className="text-xs font-semibold text-gray-500 tracking-wider mb-2">
             {chainLabel(chainId)} <span className="text-gray-400 font-normal">({list.length})</span>
           </h3>
           <div className="flex flex-wrap gap-2">
@@ -100,11 +100,11 @@ export default function StoreSelector({ onSelect, selected }) {
                 >
                   #{s.storeId}
                   {sub && (
-                    <span className={`ml-2 text-xs ${isSelected ? 'text-blue-100' : 'text-blue-500'}`}>
+                    <span className={`ms-2 text-xs ${isSelected ? 'text-blue-100' : 'text-blue-500'}`}>
                       {sub}
                     </span>
                   )}
-                  <span className={`ml-2 text-xs ${isSelected ? 'text-blue-100' : 'text-gray-400'}`}>
+                  <span className={`ms-2 text-xs ${isSelected ? 'text-blue-100' : 'text-gray-400'}`}>
                     {s.itemCount}
                   </span>
                 </button>

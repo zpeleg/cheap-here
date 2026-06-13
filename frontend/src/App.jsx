@@ -6,7 +6,7 @@ import { setChainNames } from './chains'
 const formatUpdated = (iso) => {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString('he-IL', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -55,34 +55,34 @@ export default function App() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900">Cheap Here 🛒</h1>
+          <h1 className="text-3xl font-bold text-gray-900">זול פה 🛒</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Items where this branch beats the national median price by at least 5%
+            מוצרים שזולים בסניף הזה בלפחות 5% מהחציון בארץ
           </p>
           <details className="mt-2 text-xs text-gray-400">
             <summary className="cursor-pointer select-none hover:text-gray-600">
-              What do the columns mean?
+              מה המשמעות של העמודות?
             </summary>
             <dl className="mt-2 grid max-w-2xl gap-x-3 gap-y-1 sm:grid-cols-[auto_1fr]">
-              <dt className="font-medium text-gray-500">Sale ₪</dt>
-              <dd>Promotional per-unit price when this branch has an active sale — tap it for the deal's full terms.</dd>
-              <dt className="font-medium text-gray-500">Price ₪</dt>
-              <dd>The branch's regular shelf price (struck through when a sale beats it).</dd>
-              <dt className="font-medium text-gray-500">Elsewhere ₪</dt>
-              <dd>Cheapest price for the same item at a competing chain — tap to see every chain's price.</dd>
-              <dt className="font-medium text-gray-500">Median ₪</dt>
-              <dd>The middle price for this item across all stores nationwide.</dd>
-              <dt className="font-medium text-gray-500">Max ₪</dt>
-              <dd>The highest price this item sells for anywhere nationwide.</dd>
-              <dt className="font-medium text-gray-500">Saved ₪</dt>
-              <dd>How much you save buying here versus the national median price.</dd>
-              <dt className="font-medium text-gray-500">Deal</dt>
-              <dd>How far below the national median this branch's price is, as a percentage.</dd>
+              <dt className="font-medium text-gray-500">מבצע ₪</dt>
+              <dd>מחיר ליחידה במבצע כשבסניף יש מבצע פעיל — הקישו לתנאים המלאים של המבצע.</dd>
+              <dt className="font-medium text-gray-500">מחיר ₪</dt>
+              <dd>מחיר המדף הרגיל של הסניף (מחוק כשמבצע זול ממנו).</dd>
+              <dt className="font-medium text-gray-500">במקום אחר ₪</dt>
+              <dd>המחיר הזול ביותר לאותו מוצר ברשת מתחרה — הקישו לראות את המחיר בכל רשת.</dd>
+              <dt className="font-medium text-gray-500">חציון ₪</dt>
+              <dd>המחיר האמצעי של המוצר בכל החנויות בארץ.</dd>
+              <dt className="font-medium text-gray-500">מקסימום ₪</dt>
+              <dd>המחיר הגבוה ביותר של המוצר בכל הארץ.</dd>
+              <dt className="font-medium text-gray-500">חיסכון ₪</dt>
+              <dd>כמה חוסכים בקנייה כאן לעומת המחיר החציוני הארצי.</dd>
+              <dt className="font-medium text-gray-500">מבצע</dt>
+              <dd>כמה אחוזים מתחת לחציון הארצי נמצא מחיר הסניף.</dd>
             </dl>
           </details>
           {updatedAt && formatUpdated(updatedAt) && (
             <p className="mt-2 text-xs text-gray-400">
-              Last updated {formatUpdated(updatedAt)}
+              עודכן לאחרונה {formatUpdated(updatedAt)}
             </p>
           )}
         </div>
@@ -92,18 +92,18 @@ export default function App() {
         <StoreSelector onSelect={handleStoreSelect} selected={store?.key} />
 
         {loading && (
-          <p className="text-center text-gray-400 py-12">Loading store data…</p>
+          <p className="text-center text-gray-400 py-12">טוען נתוני חנות…</p>
         )}
 
         {error && (
           <div className="rounded-md bg-red-50 border border-red-200 p-4 text-sm text-red-700">
-            Failed to load store {store?.key}: {error}
+            טעינת החנות {store?.key} נכשלה: {error}
           </div>
         )}
 
         {!loading && store && !error && items.length === 0 && (
           <p className="text-center text-gray-400 py-12">
-            No cheapest items found for store {store.key}.
+            לא נמצאו מוצרים זולים בחנות {store.key}.
           </p>
         )}
 

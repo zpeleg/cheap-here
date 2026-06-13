@@ -3,15 +3,15 @@ import { chainName } from '../chains'
 
 const COLUMNS = [
   // name can be null (some chains omit it for store-brand barcodes)
-  { key: 'name',    label: 'Item Name', cmp: (a, b) => (a.name || '').localeCompare(b.name || '', 'he') },
-  { key: 'barcode', label: 'Barcode',   cmp: (a, b) => a.barcode.localeCompare(b.barcode) },
-  { key: 'sale',    label: 'Sale ₪',    cmp: (a, b) => salePrice(a) - salePrice(b) },
-  { key: 'price',   label: 'Price ₪',   cmp: (a, b) => a.price - b.price },
-  { key: 'others',  label: 'Elsewhere ₪', cmp: (a, b, store) => cheapestOtherPrice(a, store) - cheapestOtherPrice(b, store) },
-  { key: 'median',  label: 'Median ₪',  cmp: (a, b) => (a.medianPrice ?? 0) - (b.medianPrice ?? 0) },
-  { key: 'max',     label: 'Max ₪',     cmp: (a, b) => (a.maxPrice ?? 0) - (b.maxPrice ?? 0) },
-  { key: 'saved',   label: 'Saved ₪',   cmp: (a, b) => savedVsMedian(a) - savedVsMedian(b), defaultDesc: true },
-  { key: 'deal',    label: 'Deal',      cmp: (a, b) => dealPct(a) - dealPct(b), defaultDesc: true },
+  { key: 'name',    label: 'שם המוצר',  cmp: (a, b) => (a.name || '').localeCompare(b.name || '', 'he') },
+  { key: 'barcode', label: 'ברקוד',     cmp: (a, b) => a.barcode.localeCompare(b.barcode) },
+  { key: 'sale',    label: 'מבצע ₪',    cmp: (a, b) => salePrice(a) - salePrice(b) },
+  { key: 'price',   label: 'מחיר ₪',    cmp: (a, b) => a.price - b.price },
+  { key: 'others',  label: 'במקום אחר ₪', cmp: (a, b, store) => cheapestOtherPrice(a, store) - cheapestOtherPrice(b, store) },
+  { key: 'median',  label: 'חציון ₪',   cmp: (a, b) => (a.medianPrice ?? 0) - (b.medianPrice ?? 0) },
+  { key: 'max',     label: 'מקסימום ₪', cmp: (a, b) => (a.maxPrice ?? 0) - (b.maxPrice ?? 0) },
+  { key: 'saved',   label: 'חיסכון ₪',  cmp: (a, b) => savedVsMedian(a) - savedVsMedian(b), defaultDesc: true },
+  { key: 'deal',    label: 'מבצע',      cmp: (a, b) => dealPct(a) - dealPct(b), defaultDesc: true },
 ]
 
 // Sentinel so unsorted-on-sale-column rows sort last instead of treating
@@ -148,31 +148,31 @@ export default function ItemsTable({ items, store }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-gray-100">
         <div>
           <h2 className="font-semibold text-gray-800">
-            {chainName(store?.chainId)} · Store #{store?.storeId}
+            {chainName(store?.chainId)} · חנות #{store?.storeId}
             {store?.storeName && <span className="text-gray-500 font-normal"> — {store.storeName}</span>}
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
             {store?.city && <>{store.city} · </>}
-            {visible.length} items at least 5% below the national median here
+            {visible.length} מוצרים זולים כאן ב‑5% לפחות מהחציון הארצי
           </p>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-gray-500 whitespace-nowrap">
-            Sold in ≥
+            נמכר ב‑≥
             <input
               type="number"
               min="2"
-              placeholder="any"
+              placeholder="הכול"
               value={minStores}
               onChange={(e) => setMinStores(e.target.value)}
               className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm w-16 text-gray-900
                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            stores
+            חנויות
           </label>
           <input
             type="search"
-            placeholder="Filter by name or barcode…"
+            placeholder="סינון לפי שם או ברקוד…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-full sm:w-64
@@ -185,7 +185,7 @@ export default function ItemsTable({ items, store }) {
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <tr className="bg-gray-50 text-right text-xs font-medium text-gray-500 tracking-wider">
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
@@ -194,7 +194,7 @@ export default function ItemsTable({ items, store }) {
                 >
                   {col.label}
                   {sortKey === col.key && (
-                    <span className="ml-1 text-blue-500">
+                    <span className="ms-1 text-blue-500">
                       {sortAsc ? '↑' : '↓'}
                     </span>
                   )}
@@ -219,7 +219,7 @@ export default function ItemsTable({ items, store }) {
                         className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1
                                    text-xs font-semibold text-white shadow-sm
                                    hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
-                        title="Click for sale details"
+                        title="לחצו לפרטי המבצע"
                       >
                         <span aria-hidden>*</span> {item.sale.perUnitPrice.toFixed(2)}
                       </button>
@@ -229,7 +229,7 @@ export default function ItemsTable({ items, store }) {
                   </td>
                   <td className={
                     'px-4 py-3 font-semibold ' +
-                    (hasSale ? 'text-gray-400 line-through' : 'text-green-700')
+                    (hasSale ? 'text-gray-400 line-through' : 'text-gray-900')
                   }>
                     ₪{item.price.toFixed(2)}
                   </td>
@@ -240,14 +240,14 @@ export default function ItemsTable({ items, store }) {
                         onClick={(e) => toggleChainTip(item, e.currentTarget)}
                         onMouseEnter={(e) => { if (!chainTip?.pinned) showChainTip(item, e.currentTarget) }}
                         onMouseLeave={() => setChainTip((cur) => (cur?.pinned ? cur : null))}
-                        className="cursor-pointer border-b border-dotted border-gray-400 text-left rounded-sm
+                        className="cursor-pointer border-b border-dotted border-gray-400 text-right rounded-sm
                                    focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        title="Tap for per-chain prices"
+                        title="הקישו למחירים לפי רשת"
                       >
                         <span className="text-gray-700">₪{others[0][1].toFixed(2)}</span>
-                        <span className="ml-1 text-xs text-gray-400">{chainName(others[0][0])}</span>
+                        <span className="ms-1 text-xs text-gray-400">{chainName(others[0][0])}</span>
                         {others.length > 1 && (
-                          <span className="ml-1 text-xs font-medium text-blue-500">+{others.length - 1}</span>
+                          <span className="ms-1 text-xs font-medium text-blue-500">+{others.length - 1}</span>
                         )}
                       </button>
                     ) : (
@@ -288,7 +288,7 @@ export default function ItemsTable({ items, store }) {
       </div>
 
       {visible.length === 0 && (
-        <p className="text-center text-gray-400 py-10 text-sm">No items match your filter.</p>
+        <p className="text-center text-gray-400 py-10 text-sm">אין מוצרים שתואמים לסינון.</p>
       )}
 
       {chainTip && (
@@ -323,9 +323,9 @@ function ChainPricesTip({ tip, store }) {
       style={{ left, ...(above ? { bottom } : { top }) }}
       onClick={pinned ? (e) => e.stopPropagation() : undefined}
     >
-      <div className="px-3 py-1.5 border-b border-gray-100 text-[11px] font-medium uppercase
+      <div className="px-3 py-1.5 border-b border-gray-100 text-[11px] font-medium
                       tracking-wider text-gray-400">
-        Cheapest per chain
+        הזול ביותר בכל רשת
       </div>
       <div className="py-1">
         {item.chainPrices.map(([chainId, price, branches]) => {
@@ -340,9 +340,9 @@ function ChainPricesTip({ tip, store }) {
             >
               <span className={isHere ? 'font-semibold text-blue-700' : 'text-gray-700'}>
                 {chainName(chainId)}
-                {isHere && ' · here'}
-                <span className="ml-1 text-gray-400 font-normal">
-                  {branches > 1 ? `${branches} stores` : '1 store'}
+                {isHere && ' · כאן'}
+                <span className="ms-1 text-gray-400 font-normal">
+                  {branches > 1 ? `${branches} חנויות` : 'חנות אחת'}
                 </span>
               </span>
               <span className={'font-medium ' + (isHere ? 'text-blue-700' : 'text-gray-900')}>
@@ -370,21 +370,21 @@ function SaleModal({ item, sale, onClose }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 text-center">
-          Sale details
+          פרטי המבצע
         </div>
         <div className="p-5 space-y-2 text-center">
           <p className="text-sm text-gray-500 truncate">{item.name}</p>
           <p className="text-base text-gray-900">
-            {qtyDisplay} unit{qty === 1 ? '' : 's'} for ₪{sale.totalPrice.toFixed(2)}
+            {qtyDisplay} {qty === 1 ? 'יחידה' : 'יחידות'} ב‑₪{sale.totalPrice.toFixed(2)}
           </p>
           <p className="text-sm text-gray-500">
-            (₪{sale.perUnitPrice.toFixed(2)} per unit)
+            (₪{sale.perUnitPrice.toFixed(2)} ליחידה)
           </p>
           {sale.description && (
             <p className="text-xs text-gray-400 pt-1">{sale.description}</p>
           )}
           {validUntil && (
-            <p className="text-sm text-gray-600 pt-2">Valid until {validUntil}</p>
+            <p className="text-sm text-gray-600 pt-2">בתוקף עד {validUntil}</p>
           )}
         </div>
         <div className="px-5 pb-4 text-center">
@@ -394,7 +394,7 @@ function SaleModal({ item, sale, onClose }) {
             className="rounded-md bg-gray-200 px-4 py-1.5 text-sm font-medium text-gray-700
                        hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400"
           >
-            Close
+            סגירה
           </button>
         </div>
       </div>
