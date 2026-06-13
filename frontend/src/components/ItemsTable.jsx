@@ -77,7 +77,7 @@ export default function ItemsTable({ items, store }) {
   const [sortKey, setSortKey]   = useState('deal')
   const [sortAsc, setSortAsc]   = useState(false) // deal sorts best-first by default
   const [activeSale, setActiveSale] = useState(null) // { item, sale }
-  const [chainTip, setChainTip] = useState(null) // { item, left, top, bottom, above }
+  const [chainTip, setChainTip] = useState(null) // { item, pinned, left, top, bottom, above }
 
   // The tooltip is position:fixed (the table's overflow-x-auto would clip an
   // absolutely positioned one), so any scroll leaves it floating — dismiss.
@@ -88,16 +88,26 @@ export default function ItemsTable({ items, store }) {
     return () => window.removeEventListener('scroll', hide, true)
   }, [chainTip])
 
-  const showChainTip = (item, cell) => {
-    const rect = cell.getBoundingClientRect()
+  // pinned tips stay open until tapped away (mobile); hover tips follow the
+  // cursor and clear on mouse leave (desktop).
+  const showChainTip = (item, el, pinned = false) => {
+    const rect = el.getBoundingClientRect()
     const estHeight = item.chainPrices.length * 28 + 40
     setChainTip({
       item,
+      pinned,
       left: Math.max(8, Math.min(rect.left, window.innerWidth - 288)),
       top: rect.bottom + 6,
       bottom: window.innerHeight - rect.top + 6,
       above: rect.bottom + estHeight + 6 > window.innerHeight,
     })
+  }
+
+  // Tap toggles a pinned tip — the only path touch devices have, since they
+  // never fire mouseenter/leave.
+  const toggleChainTip = (item, el) => {
+    if (chainTip?.pinned && chainTip.item.barcode === item.barcode) setChainTip(null)
+    else showChainTip(item, el, true)
   }
 
   const toggleSort = (key) => {
@@ -125,7 +135,11 @@ export default function ItemsTable({ items, store }) {
     }
 
     const col = COLUMNS.find((c) => c.key === sortKey)
-    return [...base].sort((a, b) => sortAsc ? col.cmp(a, b, store) : col.cmp(b, a, store))
+    // Attach each row's competing-chain prices here so the filter doesn't
+    // re-run for every row on every render (hover/tap re-render the tbody).
+    return [...base]
+      .sort((a, b) => sortAsc ? col.cmp(a, b, store) : col.cmp(b, a, store))
+      .map((item) => ({ item, others: otherChainPrices(item, store) }))
   }, [items, search, minStores, sortKey, sortAsc, store])
 
   return (
@@ -189,11 +203,10 @@ export default function ItemsTable({ items, store }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {visible.map((item) => {
+            {visible.map(({ item, others }) => {
               const hasSale = !!item.sale
               const pct = item.medianPrice ? dealPct(item) : null
               const saved = item.medianPrice != null ? savedVsMedian(item) : null
-              const others = otherChainPrices(item, store)
               return (
                 <tr key={item.barcode} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-gray-900">{item.name}</td>
@@ -220,19 +233,23 @@ export default function ItemsTable({ items, store }) {
                   }>
                     ₪{item.price.toFixed(2)}
                   </td>
-                  <td
-                    className="px-4 py-3 whitespace-nowrap"
-                    onMouseEnter={others.length ? (e) => showChainTip(item, e.currentTarget) : undefined}
-                    onMouseLeave={others.length ? () => setChainTip(null) : undefined}
-                  >
+                  <td className="px-4 py-3 whitespace-nowrap">
                     {others.length ? (
-                      <span className="cursor-help border-b border-dotted border-gray-400">
+                      <button
+                        type="button"
+                        onClick={(e) => toggleChainTip(item, e.currentTarget)}
+                        onMouseEnter={(e) => { if (!chainTip?.pinned) showChainTip(item, e.currentTarget) }}
+                        onMouseLeave={() => setChainTip((cur) => (cur?.pinned ? cur : null))}
+                        className="cursor-pointer border-b border-dotted border-gray-400 text-left rounded-sm
+                                   focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        title="Tap for per-chain prices"
+                      >
                         <span className="text-gray-700">₪{others[0][1].toFixed(2)}</span>
                         <span className="ml-1 text-xs text-gray-400">{chainName(others[0][0])}</span>
                         {others.length > 1 && (
                           <span className="ml-1 text-xs font-medium text-blue-500">+{others.length - 1}</span>
                         )}
-                      </span>
+                      </button>
                     ) : (
                       <span className="text-gray-300">—</span>
                     )}
@@ -274,7 +291,15 @@ export default function ItemsTable({ items, store }) {
         <p className="text-center text-gray-400 py-10 text-sm">No items match your filter.</p>
       )}
 
-      {chainTip && <ChainPricesTip tip={chainTip} store={store} />}
+      {chainTip && (
+        <>
+          {/* Invisible click-catcher so a tapped-open tip dismisses on outside tap. */}
+          {chainTip.pinned && (
+            <div className="fixed inset-0 z-40" onClick={() => setChainTip(null)} />
+          )}
+          <ChainPricesTip tip={chainTip} store={store} />
+        </>
+      )}
 
       {activeSale && (
         <SaleModal
@@ -288,12 +313,15 @@ export default function ItemsTable({ items, store }) {
 }
 
 function ChainPricesTip({ tip, store }) {
-  const { item, left, top, bottom, above } = tip
+  const { item, left, top, bottom, above, pinned } = tip
   return (
     <div
-      className="fixed z-50 w-72 rounded-lg border border-gray-200 bg-white
-                 shadow-lg pointer-events-none"
+      className={
+        'fixed z-50 w-72 rounded-lg border border-gray-200 bg-white shadow-lg ' +
+        (pinned ? '' : 'pointer-events-none')
+      }
       style={{ left, ...(above ? { bottom } : { top }) }}
+      onClick={pinned ? (e) => e.stopPropagation() : undefined}
     >
       <div className="px-3 py-1.5 border-b border-gray-100 text-[11px] font-medium uppercase
                       tracking-wider text-gray-400">
