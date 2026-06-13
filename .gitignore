@@ -22,3 +22,6 @@ etl/node_modules/
 
 # macOS
 .DS_Store
+
+.claude
+.vscode
