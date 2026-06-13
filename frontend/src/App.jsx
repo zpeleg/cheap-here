@@ -1,12 +1,34 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import StoreSelector from './components/StoreSelector'
 import ItemsTable from './components/ItemsTable'
+
+const formatUpdated = (iso) => {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 export default function App() {
   const [store, setStore] = useState(null)
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [updatedAt, setUpdatedAt] = useState(null)
+
+  // The data export stamps stores.json with the time the ETL last ran; surface
+  // it so visitors know how fresh the prices are.
+  useEffect(() => {
+    fetch('/data/stores.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setUpdatedAt(data?.updatedAt ?? null))
+      .catch(() => {})
+  }, [])
 
   const handleStoreSelect = async (s) => {
     setStore(s)
@@ -33,6 +55,11 @@ export default function App() {
           <p className="mt-1 text-sm text-gray-500">
             Items where this branch has the cheapest price nationally
           </p>
+          {updatedAt && formatUpdated(updatedAt) && (
+            <p className="mt-2 text-xs text-gray-400">
+              Last updated {formatUpdated(updatedAt)}
+            </p>
+          )}
         </div>
       </header>
 

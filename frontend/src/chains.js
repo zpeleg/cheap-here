@@ -10,6 +10,7 @@ export const CHAIN_NAMES = {
   '7290058197699': 'Good Pharm',
   '7290055700007': 'Carrefour',
   '7290700100008': 'Hazi Hinam',
+  '7290492000005': 'am:pm',
 }
 
 export const chainName = (chainId) => CHAIN_NAMES[chainId] || chainId
